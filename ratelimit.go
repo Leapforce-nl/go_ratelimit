@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 const (
@@ -14,17 +15,18 @@ const (
 type RateLimit struct {
 	headerRemaining *string
 	headerReset     *string
-	groups          map[string]Status
+	endpoints       map[string]Status
 }
 
 type Status struct {
-	remaining int64
-	reset     int64
+	limit     int
+	remaining int
+	reset     int
 }
 
 func NewRateLimit() *RateLimit {
 	rl := RateLimit{}
-	rl.groups = make(map[string]Status)
+	rl.endpoints = make(map[string]Status)
 
 	return &rl
 }
@@ -51,39 +53,52 @@ func (rm RateLimit) getHeaderReset() string {
 	return *rm.headerReset
 }
 
-func (rl *RateLimit) Set(group string, response *http.Response) error {
-	remaining, err := strconv.ParseInt(response.Header.Get(rl.getHeaderRemaining()), 10, 64)
+func (rl *RateLimit) InitEndpoint(endpoint string, limit int, remaining int, reset int) {
+	if endpoint == "" {
+		return
+	}
+	rl.endpoints[endpoint] = Status{limit, remaining, reset}
+}
+
+func (rl *RateLimit) Set(endpoint string, response *http.Response) error {
+	remaining, err := strconv.Atoi(response.Header.Get(rl.getHeaderRemaining()))
 	if err != nil {
 		return err
 	}
-	reset, err := strconv.ParseInt(response.Header.Get(rl.getHeaderReset()), 10, 64)
+	reset, err := strconv.Atoi(response.Header.Get(rl.getHeaderReset()))
 	if err != nil {
 		return err
 	}
 
-	status, ok := rl.groups[group]
+	status, ok := rl.endpoints[endpoint]
 	if !ok {
 		status = Status{}
 	}
 	status.remaining = remaining
 	status.reset = reset
 
-	rl.groups[group] = status
+	rl.endpoints[endpoint] = status
 
 	return nil
 }
 
-func (rl *RateLimit) Check(group string) {
+func (rl *RateLimit) Check(endpoint string) {
 
-	status, ok := rl.groups[group]
+	status, ok := rl.endpoints[endpoint]
 	if !ok {
-		rl.groups[group] = Status{}
+		rl.endpoints[endpoint] = Status{}
 		return
 	}
 
-	fmt.Println("remaining", status.remaining)
-	fmt.Println("reset", status.reset)
+	if status.remaining < 1 {
+		reset := time.Unix(int64(status.reset), 0)
+		ms := reset.Sub(time.Now()).Milliseconds()
+
+		if ms > 0 {
+			fmt.Println("waiting ms:", ms)
+			time.Sleep(time.Duration(ms+1000) * time.Millisecond)
+		}
+	}
 
 	return
-
 }
