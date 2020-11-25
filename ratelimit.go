@@ -77,6 +77,8 @@ func (rl *RateLimit) Set(endpoint string, response *http.Response) error {
 	status.remaining = remaining
 	status.reset = reset
 
+	//fmt.Println(endpoint, remaining)
+
 	rl.endpoints[endpoint] = status
 
 	return nil
