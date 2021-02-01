@@ -12,7 +12,7 @@ const (
 	headerResetDefault     string = "x-rate-limit-reset"
 )
 
-type RateLimit struct {
+type Service struct {
 	headerRemaining *string
 	headerReset     *string
 	endpoints       map[string]Status
@@ -24,53 +24,53 @@ type Status struct {
 	reset     int
 }
 
-func NewRateLimit() *RateLimit {
-	rl := RateLimit{}
-	rl.endpoints = make(map[string]Status)
+func NewService() *Service {
+	service := Service{}
+	service.endpoints = make(map[string]Status)
 
-	return &rl
+	return &service
 }
 
-func (rm RateLimit) getHeaderRemaining() string {
-	if rm.headerRemaining == nil {
+func (service Service) getHeaderRemaining() string {
+	if service.headerRemaining == nil {
 		return headerRemainingDefault
 	}
-	if *rm.headerRemaining == "" {
+	if *service.headerRemaining == "" {
 		return headerRemainingDefault
 	}
 
-	return *rm.headerRemaining
+	return *service.headerRemaining
 }
 
-func (rm RateLimit) getHeaderReset() string {
-	if rm.headerReset == nil {
+func (service Service) getHeaderReset() string {
+	if service.headerReset == nil {
 		return headerResetDefault
 	}
-	if *rm.headerReset == "" {
+	if *service.headerReset == "" {
 		return headerResetDefault
 	}
 
-	return *rm.headerReset
+	return *service.headerReset
 }
 
-func (rl *RateLimit) InitEndpoint(endpoint string, limit int, remaining int, reset int) {
+func (service *Service) InitEndpoint(endpoint string, limit int, remaining int, reset int) {
 	if endpoint == "" {
 		return
 	}
-	rl.endpoints[endpoint] = Status{limit, remaining, reset}
+	service.endpoints[endpoint] = Status{limit, remaining, reset}
 }
 
-func (rl *RateLimit) Set(endpoint string, response *http.Response) error {
-	remaining, err := strconv.Atoi(response.Header.Get(rl.getHeaderRemaining()))
+func (service *Service) Set(endpoint string, response *http.Response) error {
+	remaining, err := strconv.Atoi(response.Header.Get(service.getHeaderRemaining()))
 	if err != nil {
 		return err
 	}
-	reset, err := strconv.Atoi(response.Header.Get(rl.getHeaderReset()))
+	reset, err := strconv.Atoi(response.Header.Get(service.getHeaderReset()))
 	if err != nil {
 		return err
 	}
 
-	status, ok := rl.endpoints[endpoint]
+	status, ok := service.endpoints[endpoint]
 	if !ok {
 		status = Status{}
 	}
@@ -79,16 +79,16 @@ func (rl *RateLimit) Set(endpoint string, response *http.Response) error {
 
 	//fmt.Println(endpoint, remaining)
 
-	rl.endpoints[endpoint] = status
+	service.endpoints[endpoint] = status
 
 	return nil
 }
 
-func (rl *RateLimit) Check(endpoint string) {
+func (service *Service) Check(endpoint string) {
 
-	status, ok := rl.endpoints[endpoint]
+	status, ok := service.endpoints[endpoint]
 	if !ok {
-		rl.endpoints[endpoint] = Status{}
+		service.endpoints[endpoint] = Status{}
 		return
 	}
 

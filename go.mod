@@ -1,3 +1,3 @@
 module github.com/leapforce-libraries/go_ratelimit
 
-go 1.13
+go 1.15
