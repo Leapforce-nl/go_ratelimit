@@ -13,8 +13,8 @@ const (
 )
 
 type Service struct {
-	headerRemaining *string
-	headerReset     *string
+	headerRemaining string
+	headerReset     string
 	endpoints       map[string]Status
 }
 
@@ -24,33 +24,32 @@ type Status struct {
 	reset     int
 }
 
-func NewService() *Service {
-	service := Service{}
-	service.endpoints = make(map[string]Status)
-
-	return &service
+type ServiceConfig struct {
+	HeaderRemaining *string
+	HeaderReset     *string
 }
 
-func (service Service) getHeaderRemaining() string {
-	if service.headerRemaining == nil {
-		return headerRemainingDefault
-	}
-	if *service.headerRemaining == "" {
-		return headerRemainingDefault
+func NewService(serviceConfig *ServiceConfig) *Service {
+	headerRemaining := headerRemainingDefault
+
+	if serviceConfig != nil {
+		if serviceConfig.HeaderRemaining != nil {
+			headerRemaining = *serviceConfig.HeaderRemaining
+		}
 	}
 
-	return *service.headerRemaining
-}
+	headerReset := headerResetDefault
 
-func (service Service) getHeaderReset() string {
-	if service.headerReset == nil {
-		return headerResetDefault
+	if serviceConfig != nil {
+		if serviceConfig.HeaderReset != nil {
+			headerReset = *serviceConfig.HeaderReset
+		}
 	}
-	if *service.headerReset == "" {
-		return headerResetDefault
+	return &Service{
+		headerRemaining: headerRemaining,
+		headerReset:     headerReset,
+		endpoints:       make(map[string]Status),
 	}
-
-	return *service.headerReset
 }
 
 func (service *Service) InitEndpoint(endpoint string, limit int, remaining int, reset int) {
@@ -61,11 +60,11 @@ func (service *Service) InitEndpoint(endpoint string, limit int, remaining int, 
 }
 
 func (service *Service) Set(endpoint string, response *http.Response) error {
-	remaining, err := strconv.Atoi(response.Header.Get(service.getHeaderRemaining()))
+	remaining, err := strconv.Atoi(response.Header.Get(service.headerRemaining))
 	if err != nil {
 		return err
 	}
-	reset, err := strconv.Atoi(response.Header.Get(service.getHeaderReset()))
+	reset, err := strconv.Atoi(response.Header.Get(service.headerReset))
 	if err != nil {
 		return err
 	}
